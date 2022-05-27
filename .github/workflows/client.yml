@@ -1,0 +1,56 @@
+name: CLIENT
+
+on:
+    push:
+      paths:
+        - 'loop.txt'
+    workflow_dispatch:
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@v3
+
+       - name: "Cancel Previous Workflow Runs"
+         uses: styfle/cancel-workflow-action@0.9.1
+         with:
+            all_but_latest: true
+            access_token: ${{ secrets.GH_TOKEN }}
+
+       - name: initialization
+         continue-on-error: true
+         run: |
+           git config --global user.name ${{ secrets.GH_USERNAME }}
+           git config --global user.email ${{ secrets.GH_MAIL }}
+           git config --global credential.helper store
+           echo "https://${{ secrets.GH_USERNAME }}:${{ secrets.GH_TOKEN }}@github.com" > ~/.git-credentials
+
+       - name: Cleanup storage
+         uses: shakida/slimhub_actions@main
+
+       - name: Cloning client repository
+         run: |
+           git clone ${{ secrets.REPO }} -b ${{ secrets.BRANCH }} source && cd source || exit 1
+
+       - name: Deploying with docker
+         run: |
+           docker build . --rm --force-rm --compress --no-cache=true --pull --file Dockerfile -t client
+
+       - name: Running client
+         timeout-minutes: 350
+         continue-on-error: true
+         run: |
+           docker run --privileged --rm -i client
+
+       - name: Loop workflow
+         continue-on-error: true
+         run: |
+              git clone https://github.com/${GITHUB_REPOSITORY} loop
+              cd loop || exit 1
+              echo $(date -u +%T%P) >> loop.txt
+              git add loop.txt
+              git commit -m "Workflow : Loop"
+              git push -q https://${{ secrets.GH_TOKEN }}@github.com/${GITHUB_REPOSITORY} HEAD:main
