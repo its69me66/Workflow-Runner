@@ -33,10 +33,11 @@ jobs:
 
        - name: Cloning client repository
          run: |
-           git clone ${{ secrets.REPO }} -b ${{ secrets.BRANCH }} source && cd source || exit 1
+           git clone ${{ secrets.REPO }} -b ${{ secrets.BRANCH }} source
 
        - name: Deploying with docker
          run: |
+           cd source || exit 1
            docker container prune --force || true
            docker build . --rm --force-rm --compress --no-cache=true --pull --file Dockerfile -t client
            docker image ls
